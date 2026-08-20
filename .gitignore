@@ -1,0 +1,6 @@
+.env
+vendor/
+mysql-data/
+.vscode/
+.idea/
+.DS_Store
