@@ -120,7 +120,7 @@
       fetch("/api/run/list_manipulation/count_fruit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fruit }),
+        body: JSON.stringify(fruit),
       })
         .then((res) => res.json())
         .then((data) => {
@@ -128,7 +128,7 @@
             fruitError.textContent = data.error;
             return;
           }
-          fruitResult.textContent = `${data.fruit}: ${data.count}`;
+          fruitResult.textContent = data;
         });
     });
   </script>

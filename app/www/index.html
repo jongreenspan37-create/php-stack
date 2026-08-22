@@ -1,178 +1,169 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Basic Scripts</title>
     <style>
-        .result-div{
-            margin: 2rem 4rem;
-            font-size: large;
-        }
+      .result-div {
+        margin: 2rem 4rem;
+        font-size: large;
+      }
     </style>
-</head>
-<body>
-    
+  </head>
+  <body>
     <form id="add-numbers">
-        <input type = "number" step="any" name="x" required>
-        <input type="number" step="any" name="y" required>
-        <input type="number" step="any" name="a" required>
+      <input type="number" step="any" name="x" required />
+      <input type="number" step="any" name="y" required />
+      <input type="number" step="any" name="a" required />
 
-
-        <button type = "submit" >Add Numbers</button>
+      <button type="submit">Add Numbers</button>
     </form>
-    
-    <div class = "result-div" id = "result-1"></div>
-    <div class = "result-div" id = "result-2"></div>
-    <div class = "result-div" id = "result-3"></div>
 
-    
+    <div class="result-div" id="result-1"></div>
+    <div class="result-div" id="result-2"></div>
+    <div class="result-div" id="result-3"></div>
+
     <form id="add-strings">
-        <input type = "text" maxlength="100" name="a" required>
-        <input type="text" maxlength="100" name="b" required>
-        <input type="text" maxlength="100" name="c" required>
+      <input type="text" maxlength="100" name="a" required />
+      <input type="text" maxlength="100" name="b" required />
+      <input type="text" maxlength="100" name="c" required />
 
-
-        <button type = "submit" >Add Words</button>
+      <button type="submit">Add Words</button>
     </form>
 
-    <div class = "result-div" id = "result-error" style="color:red;"></div>
-    <div class = "result-div" id = "string-error"></div>
-    <div class = "result-div" id = "string-result"></div>
+    <div class="result-div" id="result-error" style="color: red"></div>
+    <div class="result-div" id="string-error"></div>
+    <div class="result-div" id="string-result"></div>
 
     <div class="result-div">
-        <button id="add-phrase" data-script = "basic/add_phrase">Add a phrase</button>
-        <div class = "result-div" style="color:purple" id="display-phrase"></div> 
-        
-        <div class= "result-div"  id="slice"></div>
-    </div>
-   
+      <button id="add-phrase" data-script="basic/add_phrase">
+        Add a phrase
+      </button>
+      <div class="result-div" style="color: purple" id="display-phrase"></div>
 
-    
-    
+      <div class="result-div" id="slice"></div>
+    </div>
 
     <script>
-        const addNumbers = document.getElementById('add-numbers')
-        const resultError = document.getElementById('result-error')
-        const result1 = document.getElementById('result-1')
-        const result2 = document.getElementById('result-2')
-        const result3 = document.getElementById('result-3')
+      const addNumbers = document.getElementById("add-numbers");
+      const resultError = document.getElementById("result-error");
+      const result1 = document.getElementById("result-1");
+      const result2 = document.getElementById("result-2");
+      const result3 = document.getElementById("result-3");
 
+      addNumbers.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const form = e.target;
+        resultError.textContent = "";
+        result1.textContent = "";
+        result2.textContent = "";
+        result3.textContent = "";
 
-        addNumbers.addEventListener('submit', (e)=>{
-            e.preventDefault();
-            const form = e.target;
-            resultError.textContent = ''
-            result1.textContent = ''
-            result2.textContent = ''
-            result3.textContent = ''
+        const x = Number(form.x.value);
+        const y = Number(form.y.value);
+        const a = Number(form.a.value);
 
-            const x = Number(form.x.value)
-            const y = Number(form.y.value)
-            const a = Number(form.a.value)
+        // Client-side check: fast feedback only, not security.
+        // The backend re-validates because this can be bypassed.
+        if (![x, y, a].every(Number.isFinite)) {
+          resultError.textContent = "x, y, and a must all be valid numbers.";
+          return;
+        }
 
-            // Client-side check: fast feedback only, not security.
-            // The backend re-validates because this can be bypassed.
-            if (![x, y, a].every(Number.isFinite)) {
-                resultError.textContent = 'x, y, and a must all be valid numbers.'
-                return
-            }
-
-            fetch ('/api/run/basic/add_numbers', {
-                method:'POST',
-                headers: { 'Content-Type': 'application/json'},
-                body: JSON.stringify ( { x, y , a })
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.error) {
-                    resultError.textContent = data.error
-                    return
-                }
-                result1.textContent = "Result = " + data[0]
-                result2.textContent = "Raw result = " + data + " Extracting parts = " + data[0] + " " + data[1]
-                ///Increased risk !
-                result3.innerHTML = `<div>Temperal literal =  <strong>${data[0]} ${data[1]}</strong></span></div>`
-            })
+        fetch("/api/run/basic/add_numbers", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ x, y, a }),
         })
-
-        const addStrings = document.getElementById('add-strings')
-        const stringError = document.getElementById('string-error')
-        const stringResult = document.getElementById('string-result')
-
-        addStrings.addEventListener('submit', (e)=>{
-            e.preventDefault();
-            const form = e.target;
-            stringError.textContent = ''
-            stringResult.textContent = ''
-
-            const a = form.a.value.trim()
-            const b = form.b.value.trim()
-            const c = form.c.value.trim()
-
-            // Client-side check: fast feedback only, not security.
-            // The backend re-validates because this can be bypassed.
-            if (![a, b, c].every(v => v.length > 0 && v.length <= 100)) {
-                stringError.textContent = 'Each word must be 1-100 characters.'
-                return
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.error) {
+              resultError.textContent = data.error;
+              return;
             }
+            result1.textContent = "Result = " + data[0];
+            result2.textContent =
+              "Raw result = " +
+              data +
+              " Extracting parts = " +
+              data[0] +
+              " " +
+              data[1];
+            ///Increased risk !
+            result3.innerHTML = `<div>Temperal literal =  <strong>${data[0]} ${data[1]}</strong></span></div>`;
+          });
+      });
 
-            fetch ('/api/run/basic/add_strings', {
-                method:'POST',
-                headers: { 'Content-Type': 'application/json'},
-                body: JSON.stringify ( { a, b, c })
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.error) {
-                    stringError.textContent = data.error
-                    return
-                }
-                // textContent (not innerHTML) is what actually stops XSS here:
-                // the browser renders this as plain text, so tags can't execute.
-                stringResult.textContent = data.result
-            })
+      const addStrings = document.getElementById("add-strings");
+      const stringError = document.getElementById("string-error");
+      const stringResult = document.getElementById("string-result");
+
+      addStrings.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const form = e.target;
+        stringError.textContent = "";
+        stringResult.textContent = "";
+
+        const a = form.a.value.trim();
+        const b = form.b.value.trim();
+        const c = form.c.value.trim();
+
+        // Client-side check: fast feedback only, not security.
+        // The backend re-validates because this can be bypassed.
+        if (![a, b, c].every((v) => v.length > 0 && v.length <= 100)) {
+          stringError.textContent = "Each word must be 1-100 characters.";
+          return;
+        }
+
+        fetch("/api/run/basic/add_strings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ a, b, c }),
         })
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.error) {
+              stringError.textContent = data.error;
+              return;
+            }
+            // textContent (not innerHTML) is what actually stops XSS here:
+            // the browser renders this as plain text, so tags can't execute.
+            stringResult.textContent = data.result;
+          });
+      });
 
-        const addPhrase = document.getElementById('add-phrase');
-        const displayPhrase = document.getElementById('display-phrase')
-        const displaySlice = document.getElementById('slice')
+      const addPhrase = document.getElementById("add-phrase");
+      const displayPhrase = document.getElementById("display-phrase");
+      const displaySlice = document.getElementById("slice");
 
-        
-        
-        addPhrase.addEventListener('click', ()=>{
-            displayPhrase.textContent = "Fetching ...."
-            fetch("/api/run/basic/add_phrase")
-            .then(res => res.json())
-            .then(data => {
-                const phrase = data
-                displayPhrase.textContent= "'" + phrase + "'";
-                
-                    if(phrase){
-                        console.log(phrase)
-                        return fetch('/api/run/basic/string_func' , {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json'},
-                            body: JSON.stringify( { "text" : phrase } )
-                        })
-                                .then(res => res.json())
-                                .then(data => {
-                                    
-                                    
-                                    //Danger using innerHTML
-                                    displaySlice.innerHTML= 
-                                    `This is a slice of the phrase 
+      addPhrase.addEventListener("click", () => {
+        displayPhrase.textContent = "Fetching ....";
+        fetch("/api/run/basic/add_phrase")
+          .then((res) => res.json())
+          .then((data) => {
+            const phrase = data;
+            displayPhrase.textContent = "'" + phrase + "'";
+
+            if (phrase) {
+              console.log(phrase);
+              return fetch("/api/run/basic/string_func", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ text: phrase }),
+              })
+                .then((res) => res.json())
+                .then((data) => {
+                  //Danger using innerHTML
+                  displaySlice.innerHTML = `This is a slice of the phrase 
                                     <div class='result-div'style='color:purple'> 
                                         "${data[0]}" </div>  
                                         and this shows CAPATILISATION of the string 
-                                        <div class='result-div' style='color:purple'>${data[1]}</div>`});
-                    }
-                })
-        })
-
-
-
-        
+                                        <div class='result-div' style='color:purple'>${data[1]}</div>`;
+                });
+            }
+          });
+      });
     </script>
-</body>
+  </body>
 </html>
