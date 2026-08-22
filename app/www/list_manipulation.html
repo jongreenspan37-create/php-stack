@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>List Manipulation</title>
+    <style>
+      .div1 {
+        display: flex;
+        gap: 4rem;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>List manipulation</h1>
+    <div>
+      <button type="button" id="test">Test</button>
+      <script>
+        const test = document.getElementById("test");
+        test.addEventListener("click", () => {
+          fetch("/api/run/list_manipulation/hello")
+            .then((res) => res.json())
+            .then((data) => console.log(data));
+        });
+      </script>
+    </div>
+
+    <div class="div1">
+      <div>
+        <div>
+          <button type="button" id="add-list">Create fruit UL list</button>
+        </div>
+        <ul id="fruit-list"></ul>
+      </div>
+      <div>
+        <div>
+          <button type="button" id="add-table">Create fruit table</button>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Fruit</th>
+            </tr>
+          </thead>
+          <tbody id="fruit-table-body"></tbody>
+        </table>
+      </div>
+
+      <div>
+        <form id="count-fruit">
+          <input type="text" name="fruit" placeholder="e.g. melon" required />
+
+          <button type="submit">Count Fruit</button>
+        </form>
+        <div class="result-div" id="fruit-error" style="color: red"></div>
+        <div class="result-div" id="fruit-result"></div>
+      </div>
+    </div>
+  </body>
+  <script>
+    const addList = document.getElementById("add-list");
+    const addTable = document.getElementById("add-table");
+    const fruitList = document.getElementById("fruit-list");
+    const fruitTableBody = document.getElementById("fruit-table-body");
+
+    //uses forEach no new array just display
+    addList.addEventListener("click", () => {
+      fetch("/api/run/list_manipulation/upload_fruits")
+        .then((res) => res.json())
+        .then((data) => {
+          data.forEach((fruitItem) => {
+            const li = document.createElement("li");
+            li.textContent = `${fruitItem.id} - ${fruitItem.fruit};`;
+            fruitList.appendChild(li);
+          });
+        });
+    });
+
+    //uses .map() create new array
+    addTable.addEventListener("click", () => {
+      fetch("/api/run/list_manipulation/upload_fruits")
+        .then((res) => res.json())
+        .then((data) => {
+          const rows = data.map((fruitItem) => {
+            const tr = document.createElement("tr");
+
+            const idCell = document.createElement("td");
+            idCell.textContent = fruitItem.id;
+
+            const fruitCell = document.createElement("td");
+            fruitCell.textContent = fruitItem.fruit;
+
+            tr.append(idCell, fruitCell);
+            return tr;
+          });
+          fruitTableBody.append(...rows);
+        });
+    });
+
+    const countFruit = document.getElementById("count-fruit");
+    const fruitError = document.getElementById("fruit-error");
+    const fruitResult = document.getElementById("fruit-result");
+
+    countFruit.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const form = e.target;
+      fruitError.textContent = "";
+      fruitResult.textContent = "";
+
+      const fruit = form.fruit.value.trim();
+
+      // Client-side check: fast feedback only, not security.
+      // The backend re-validates because this can be bypassed.
+      if (!fruit) {
+        fruitError.textContent = "Enter a fruit name.";
+        return;
+      }
+
+      fetch("/api/run/list_manipulation/count_fruit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fruit }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.error) {
+            fruitError.textContent = data.error;
+            return;
+          }
+          fruitResult.textContent = `${data.fruit}: ${data.count}`;
+        });
+    });
+  </script>
+</html>
