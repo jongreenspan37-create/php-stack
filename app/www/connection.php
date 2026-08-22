@@ -1,5 +1,5 @@
 <?php
-// Mirrors python-stack/app/www/connection.py
+//Creates a database connection keeping value secret. Not a pool only one connection
 
 function get_connection(?string $dbname = null): PDO
 {

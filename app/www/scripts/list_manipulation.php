@@ -1,8 +1,7 @@
 <?php
 
-function upload_fruits($body = Null)
+function get_list()
 {
-
     $fruits_list = [];
     $fruits_path = __Dir__ . "/csv/fruits.csv";
 
@@ -21,4 +20,24 @@ function upload_fruits($body = Null)
     fclose($file);
 
     return $fruits_list;
+}
+
+function upload_fruits($body = Null)
+{
+    return get_list();
+}
+
+function count_fruit($body)
+{
+    $fruit = $body;
+    $fruits_list = get_list();
+
+    $count = 0;
+    foreach ($fruits_list as $row) {
+        if ($row['fruit'] === $fruit) {
+            $count++;
+        }
+    }
+
+    return $count;
 }
