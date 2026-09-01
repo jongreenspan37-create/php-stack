@@ -27,11 +27,30 @@ if ($email === '' || $password === '') {
     login_failed('Enter your email and password.');
 }
 
-// --- 3. Look the account up and verify the hash ----------------------
+// --- 3. Refuse early if this IP+email is already locked out ----------
+// The throttle guards the `accounts` login: N failures in a window ->
+// a timed lock, checked here BEFORE the password is looked at so a
+// locked caller costs nothing.
+$rate_key = login_rate_key($email);
+
 try {
     $conn = get_connection();
     ensure_accounts_table($conn);
+    ensure_rate_limits_table($conn);
+} catch (PDOException $e) {
+    http_response_code(500);
+    error_log('login.php: ' . $e->getMessage());
+    render_page('Something went wrong', '<p>Please try again in a moment.</p>');
+    exit;
+}
 
+$wait = login_lockout_seconds($conn, $rate_key);
+if ($wait > 0) {
+    login_lockout_response($wait);
+}
+
+// --- 4. Look the account up and verify the hash --------------------
+try {
     $stmt = $conn->prepare(
         'SELECT id, first_name, last_name, email, password_hash'
         . ' FROM accounts WHERE email = ?;'
@@ -49,10 +68,20 @@ try {
 // stored string. Unknown email and wrong password give the SAME response
 // on purpose -- don't tell an attacker which half was right.
 if ($account === false || !password_verify($password, $account['password_hash'])) {
+    // Count the failure first. If it's the one that trips the limit,
+    // say so; otherwise the generic message.
+    login_register_failure($conn, $rate_key);
+    $wait = login_lockout_seconds($conn, $rate_key);
+    if ($wait > 0) {
+        login_lockout_response($wait);
+    }
     login_failed('Email or password is incorrect.');
 }
 
-// --- 4. Opportunistic rehash if the cost/algorithm moved on ----------
+// Good credentials -- clear this identifier's failure counter.
+login_clear_rate_limit($conn, $rate_key);
+
+// --- 5. Opportunistic rehash if the cost/algorithm moved on ----------
 if (password_needs_rehash($account['password_hash'], PASSWORD_DEFAULT, ['cost' => 12])) {
     try {
         $upd = $conn->prepare('UPDATE accounts SET password_hash = ? WHERE id = ?;');
@@ -66,13 +95,13 @@ if (password_needs_rehash($account['password_hash'], PASSWORD_DEFAULT, ['cost' =
 }
 unset($password);
 
-// --- 5. New session id on privilege change -> blocks session fixation
+// --- 6. New session id on privilege change -> blocks session fixation
 session_regenerate_id(true);
 $_SESSION['account_id'] = (int) $account['id'];
 $_SESSION['email']      = $account['email'];
 $_SESSION['name']       = $account['first_name'] . ' ' . $account['last_name'];
 
-// --- 6. Post/Redirect/Get: a refresh of the landing page won't re-post
+// --- 7. Post/Redirect/Get: a refresh of the landing page won't re-post
 header('Location: index.html');
 exit;
 
