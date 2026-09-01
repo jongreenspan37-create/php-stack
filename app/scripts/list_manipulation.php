@@ -9,7 +9,7 @@ function upload_fruits($body = Null)
 function count_fruit($body)
 {
     $fruit = $body;
-    $fruits_list = get_list();
+    $fruits_list = upload_fruits();
 
     $count = 0;
     foreach ($fruits_list as $row) {
@@ -19,4 +19,16 @@ function count_fruit($body)
     }
 
     return $count;
+}
+
+function prepare_data($body = Null)
+{
+    $prepared = [];
+    $fruits = upload_fruits($body = Null);
+    $text = " is a fruit";
+
+    foreach ($fruits as $row) {
+        $prepared[] = ["description" => $row['fruit'] . $text];
+    }
+    return $prepared;
 }

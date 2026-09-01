@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Register</title>
+    <!-- style.css: base rules copied from python-stack.
+         register.css: blue-palette theme, layered on top. -->
+    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="register.css" />
+  </head>
+  <body>
+    <main class="register-card">
+      <h1>Create your account</h1>
+      <p class="subtitle">All fields are required.</p>
+
+      <!--
+        Standard form submit: no fetch(), no JSON. The browser POSTs
+        application/x-www-form-urlencoded, so PHP parses it and the values
+        land in $_POST inside register.php.
+        FastAPI analogue: def register(title: str = Form(...), ...).
+      -->
+      <form action="register.php" method="post" novalidate>
+        <div class="field">
+          <label for="title">Title</label>
+          <select id="title" name="title" required>
+            <option value="">Select...</option>
+            <option>Mr</option>
+            <option>Mrs</option>
+            <option>Ms</option>
+            <option>Mx</option>
+            <option>Dr</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="first-name">First Name</label>
+          <input
+            type="text"
+            id="first-name"
+            name="first-name"
+            maxlength="50"
+            required
+          />
+        </div>
+
+        <div class="field">
+          <label for="last-name">Last Name</label>
+          <input
+            type="text"
+            id="last-name"
+            name="last-name"
+            maxlength="50"
+            required
+          />
+        </div>
+
+        <div class="field">
+          <label for="email">Email</label>
+          <input
+            type="email"
+            id="email"
+            name="email"
+            placeholder="you@example.com"
+            maxlength="254"
+            required
+          />
+        </div>
+
+        <div class="field">
+          <label for="password">Password</label>
+          <input
+            type="password"
+            id="password"
+            name="password"
+            minlength="8"
+            maxlength="128"
+            required
+          />
+        </div>
+
+        <!--
+          Bot trap. A real user never sees this (register.css moves .hp-field
+          off screen) and can't tab to it. Named like a plausible field so a
+          naive bot fills it in; register.php drops any submission where
+          "website" is non-empty.
+        -->
+        <div class="hp-field" aria-hidden="true">
+          <label for="website">Website</label>
+          <input
+            type="text"
+            id="website"
+            name="website"
+            tabindex="-1"
+            autocomplete="off"
+          />
+        </div>
+
+        <button type="submit" class="btn btn-primary">Register</button>
+      </form>
+
+      <p class="form-footer">
+        Already have an account? <a href="index.html">Sign in</a>
+      </p>
+    </main>
+  </body>
+</html>
