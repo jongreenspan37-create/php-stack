@@ -35,8 +35,6 @@ $rate_key = login_rate_key($email);
 
 try {
     $conn = get_connection();
-    ensure_accounts_table($conn);
-    ensure_rate_limits_table($conn);
 } catch (PDOException $e) {
     http_response_code(500);
     error_log('login.php: ' . $e->getMessage());
