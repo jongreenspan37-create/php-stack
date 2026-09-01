@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Basic Scripts</title>
+    <link rel="stylesheet" href="style.css" />
     <style>
       .result-div {
         margin: 2rem 4rem;
@@ -12,6 +13,22 @@
     </style>
   </head>
   <body>
+    <nav>
+      <a href="index.html">Main Page</a>
+      <a href="list-manipulation.html">List Manipulation</a>
+      <a href="database-interaction.html">Database Interaction</a>
+      <a href="learning.php">Learning PHP</a>
+      <a href="register.html">Register</a>
+    </nav>
+
+    <header>
+      <h1>Vanilla HTML/CSS/Javascript - Python - Postgres Stack</h1>
+      <p>
+        Each button imports a script in <code>scripts/</code> and calls the
+        function matching its name.
+      </p>
+    </header>
+
     <form id="add-numbers">
       <input type="number" step="any" name="x" required />
       <input type="number" step="any" name="y" required />
@@ -44,6 +61,29 @@
 
       <div class="result-div" id="slice"></div>
     </div>
+
+    <form id="date-manipulation">
+      <div>
+        <label for="date">Pick a date</label>
+        <input type="date" name="date" required />
+      </div>
+      <label for="number">Add a number and period to give next date due</label>
+      <input type="number" name="amount" required />
+      <select name="unit" required>
+        <option value="day">Day</option>
+        <option value="month">Month</option>
+        <option value="year">Year</option>
+      </select>
+
+      <button type="submit">Next Date</button>
+    </form>
+
+    <div
+      class="result-div"
+      id="date-manipulation-error"
+      style="color: red"
+    ></div>
+    <div class="result-div" id="date-manipulation-result"></div>
 
     <script>
       const addNumbers = document.getElementById("add-numbers");
@@ -150,18 +190,71 @@
               return fetch("/api/run/basic/string_func", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ text: phrase }),
+                body: JSON.stringify(phrase),
               })
                 .then((res) => res.json())
                 .then((data) => {
+                  console.log(data);
                   //Danger using innerHTML
                   displaySlice.innerHTML = `This is a slice of the phrase 
                                     <div class='result-div'style='color:purple'> 
-                                        "${data[0]}" </div>  
+                                        "${data.slice}" </div>  
                                         and this shows CAPATILISATION of the string 
-                                        <div class='result-div' style='color:purple'>${data[1]}</div>`;
+                                        <div class='result-div' style='color:purple'>${data.upper}</div>`;
                 });
             }
+          });
+      });
+
+      function formatHumanDate(isoDate) {
+        const date = new Date(isoDate + "T00:00:00Z");
+        return date.toLocaleDateString("en-GB", {
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+          timeZone: "UTC",
+        });
+      }
+
+      const dateManipulation = document.getElementById("date-manipulation");
+      const dateManipulationError = document.getElementById(
+        "date-manipulation-error",
+      );
+      const dateManipulationResult = document.getElementById(
+        "date-manipulation-result",
+      );
+
+      dateManipulation.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const form = e.target;
+        dateManipulationError.textContent = "";
+        dateManipulationResult.textContent = "";
+
+        const dateValue = form.date.value;
+        const amount = Number(form.amount.value);
+        const unit = form.unit.value;
+
+        // Client-side check: fast feedback only, not security.
+        // The backend re-validates because this can be bypassed.
+        if (!dateValue || !Number.isFinite(amount)) {
+          dateManipulationError.textContent =
+            "Enter a date and a valid amount.";
+          return;
+        }
+
+        fetch("/api/run/date_manipulation/adjust_date", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ date: dateValue, amount, unit }),
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.error) {
+              dateManipulationError.textContent = data.error;
+              return;
+            }
+            dateManipulationResult.textContent =
+              "Result: " + formatHumanDate(data.result);
           });
       });
     </script>

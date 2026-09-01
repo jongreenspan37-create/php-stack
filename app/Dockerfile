@@ -9,4 +9,7 @@ WORKDIR /var/www/html
 
 EXPOSE 8080
 
-CMD ["php", "-S", "0.0.0.0:8080", "router.php"]
+# router.php is the front controller and sits ABOVE the doc root.
+# -t www makes the built-in server serve static files only from www/,
+# so nothing in ./scripts, connection.php or auth.php is URL-reachable.
+CMD ["php", "-S", "0.0.0.0:8080", "-t", "www", "router.php"]

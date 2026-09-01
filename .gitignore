@@ -1,6 +1,7 @@
 .env
 vendor/
 mysql-data/
+app/debug.log
 .vscode/
 .idea/
 .DS_Store
