@@ -79,7 +79,6 @@ unset($password);
 // --- 5. Persist -------------------------------------------------------
 try {
     $conn = get_connection();
-    ensure_accounts_table($conn);
 
     // Prepared statement: values are bound, never concatenated into SQL.
     $stmt = $conn->prepare(

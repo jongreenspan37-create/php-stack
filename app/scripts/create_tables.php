@@ -39,10 +39,8 @@ function create_tables($body = null)
             . "CONSTRAINT fk_role FOREIGN KEY (role_id) REFERENCES roles(id)"
             . ");";
 
-        // Backs the register / login pages. Must stay identical to
-        // ensure_accounts_table() in auth.php -- that function creates this
-        // same table on first use, and register.php inserts
-        // (title, first_name, last_name, email, password_hash). Never the
+        // Backs the register / login pages (auth.php). register.php inserts
+        // (title, first_name, last_name, email, password_hash) -- never the
         // plaintext password; email is UNIQUE so a duplicate signup 409s.
         $sql_accounts = "CREATE TABLE accounts ("
             . "id INT AUTO_INCREMENT PRIMARY KEY,"
