@@ -6,8 +6,12 @@ services:
     environment:
       DB_HOST: mysql
       DB_PORT: 3306
+      # `php -S` is single-process by default; a proxy/forwarder that holds a
+      # connection open can then wedge every following request. Fork workers.
+      PHP_CLI_SERVER_WORKERS: 4
     depends_on:
-      - mysql
+      mysql:
+        condition: service_healthy
     ports:
       - "8081:8080"
     volumes:
@@ -18,10 +22,19 @@ services:
     image: mysql:8.4
     container_name: php-mysql-data
     env_file: .env
+    # Let a non-SUPER user (the app user) create the schema's TRIGGER while
+    # binary logging is on. Without this, CREATE TRIGGER fails with error 1419.
+    command: ["--log-bin-trust-function-creators=1"]
     ports:
       - "3306:3306"
     volumes:
       - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "--silent"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 30s
     restart: unless-stopped
 
 volumes:
