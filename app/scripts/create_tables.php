@@ -42,15 +42,8 @@ function create_tables($body = null)
         $conn->exec($sql_users);
         $conn->exec($sql_rate_limits);
 
-        $sql_roles_trigger = "CREATE TRIGGER roles_row_limit "
-            . "BEFORE INSERT ON roles "
-            . "FOR EACH ROW "
-            . "BEGIN "
-            . "IF (SELECT COUNT(*) FROM roles) >= 3 THEN "
-            . "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'roles table row limit (3) reached'; "
-            . "END IF; "
-            . "END";
-        $conn->exec($sql_roles_trigger);
+        // No row-limit trigger on roles: adding a role will be a protected,
+        // auth-gated endpoint rather than something capped in the schema.
 
         $sql_users_trigger = "CREATE TRIGGER users_row_limit "
             . "BEFORE INSERT ON users "
@@ -62,7 +55,22 @@ function create_tables($body = null)
             . "END";
         $conn->exec($sql_users_trigger);
 
-        return ['status' => 'ok', 'message' => 'roles, users and rate_limits tables have been created'];
+        // Read model: one row per user with the role name resolved.
+        // LEFT JOIN because users.role_id is nullable (a user may have no
+        // role yet). Query this instead of re-writing the join everywhere.
+        $sql_users_roles_view = "CREATE VIEW users_with_roles AS "
+            . "SELECT "
+            . "u.id, "
+            . "u.FirstName, "
+            . "u.LastName, "
+            . "u.email, "
+            . "u.role_id, "
+            . "r.name AS role_name "
+            . "FROM users u "
+            . "LEFT JOIN roles r ON r.id = u.role_id";
+        $conn->exec($sql_users_roles_view);
+
+        return ['status' => 'ok', 'message' => 'roles, users and rate_limits tables (+ users_with_roles view) have been created'];
     } catch (Exception $e) {
         return ['status' => 'error', 'detail' => $e->getMessage()];
     }
