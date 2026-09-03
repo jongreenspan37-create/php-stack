@@ -64,11 +64,13 @@ function create_tables($body = null)
         // UNIQUE(identifier) key, so check-and-bump is one atomic statement.
         $sql_rate_limits = "CREATE TABLE rate_limits ("
             . "id INT AUTO_INCREMENT PRIMARY KEY,"
-            . "identifier VARCHAR(255) NOT NULL,"
+            . "action VARCHAR(20) NOT NULL,"
+            . "remote_ip VARCHAR(45) NOT NULL,"
+            . "remote_email VARCHAR(191) NOT NULL DEFAULT '',"
             . "attempts INT NOT NULL DEFAULT 0,"
             . "window_start DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,"
             . "locked_until DATETIME NULL,"
-            . "UNIQUE KEY uq_rate_limits_identifier (identifier)"
+            . "UNIQUE KEY uq_rate_limits_identifier (action, remote_ip, remote_email)"
             . ");";
 
         if (!table_exists($conn, 'roles')) {

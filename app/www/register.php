@@ -17,6 +17,10 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../auth.php';
 
+
+
+
+
 // --- 1. Only accept POST ---------------------------------------------------
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
@@ -24,17 +28,34 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit('Method Not Allowed -- submit the form at register.html');
 }
 
-// --- 2. Honeypot check ---------------------------------------------------
+// --- 2. Rate-limit by IP ---------------------------------------------------
+$register_id = 'register:' . client_ip();
+
+
+$wait = rate_limit_seconds(db(), 'register', client_ip());
+if ($wait > 0) {
+    too_many_attempts($wait);
+}
+record_attempt(
+    db(),
+    'register',
+    client_ip(),
+    '',
+    REGISTER_MAX_ATTEMPTS,
+    REGISTER_WINDOW_MINUTES,
+    REGISTER_LOCKOUT_MINUTES
+);
+// --- 3. Honeypot check ---------------------------------------------------
 // .hp-field is off screen for humans. If "website" comes back with anything
 // in it, treat the sender as a bot: return a normal-looking 200 (so the bot
 // can't tell it was filtered) but write nothing.
 if (trim($_POST['website'] ?? '') !== '') {
-    error_log('register.php: honeypot tripped from ' . ($_SERVER['REMOTE_ADDR'] ?? '?'));
+    error_log('register.php: honeypot tripped from ' . client_ip());
     render_page('Thanks!', '<p>Your registration has been received.</p>');
     exit;
 }
 
-// --- 3. Collect + validate ---------------------------------------------
+// --- 4. Collect + validate ---------------------------------------------
 // Note the field names: register.html uses hyphens ("first-name"), which are
 // legal in HTML but not in a PHP variable, so read them straight from $_POST.
 $title      = trim($_POST['title'] ?? '');
@@ -58,8 +79,9 @@ if ($last_name === '' || mb_strlen($last_name) > 50) {
 if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
     $errors[] = 'Enter a valid email address.';
 }
-if (strlen($password) < 8 || strlen($password) > 128) {
-    $errors[] = 'Password must be 8-128 characters.';
+if (strlen($password) < 15 || strlen($password) > 128) {
+    //Could make 15 min in line with current guidelines.    
+    $errors[] = 'Password must be 15-128 characters.';
 }
 
 if ($errors) {
@@ -67,23 +89,23 @@ if ($errors) {
     render_page(
         'Check your details',
         '<ul class="errors"><li>' . implode('</li><li>', array_map('esc', $errors)) . '</li></ul>'
-        . '<p class="form-footer"><a href="register.html">Back to the form</a></p>'
+            . '<p class="form-footer"><a href="register.html">Back to the form</a></p>'
     );
     exit;
 }
 
-// --- 4. Hash the password -- the plaintext is never stored --------------
+// --- 5. Hash the password -- the plaintext is never stored --------------
 $password_hash = password_hash($password, PASSWORD_DEFAULT, ['cost' => 12]);
 unset($password);
 
-// --- 5. Persist -------------------------------------------------------
+// --- 6. Persist -------------------------------------------------------
 try {
-    $conn = get_connection();
+
 
     // Prepared statement: values are bound, never concatenated into SQL.
-    $stmt = $conn->prepare(
+    $stmt = db()->prepare(
         'INSERT INTO accounts (title, first_name, last_name, email, password_hash)'
-        . ' VALUES (?, ?, ?, ?, ?);'
+            . ' VALUES (?, ?, ?, ?, ?);'
     );
     $stmt->execute([$title, $first_name, $last_name, $email, $password_hash]);
 } catch (PDOException $e) {
@@ -93,7 +115,7 @@ try {
         render_page(
             'Already registered',
             '<p>That email address is already in use.</p>'
-            . '<p class="form-footer"><a href="login_form.html">Log in instead</a></p>'
+                . '<p class="form-footer"><a href="login_form.html">Log in instead</a></p>'
         );
         exit;
     }
@@ -103,9 +125,9 @@ try {
     exit;
 }
 
-// --- 6. Success ------------------------------------------------------
+// --- 7. Success ------------------------------------------------------
 render_page(
     'Welcome, ' . esc($first_name) . '!',
     '<p>Your account has been created for <strong>' . esc($email) . '</strong>.</p>'
-    . '<p class="form-footer"><a href="login_form.html">Log in</a></p>'
+        . '<p class="form-footer"><a href="login_form.html">Log in</a></p>'
 );

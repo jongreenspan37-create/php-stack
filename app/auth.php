@@ -11,120 +11,84 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/connection.php';
 
-/** HTML-escape a value before putting it in a page. */
-function esc(string $s): string
+require_once __DIR__ . '/scripts/render.php';
+
+
+//This allows for current setup and to work with a reverse proxy in production.
+//Note it also requires PHP ports to be hidden in docker compose
+//Could be made more robust and check it comes from Nginx or Apache but for now this is enough to get the correct IP address 
+function client_ip(): string
 {
-    return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
+    return $_SERVER['HTTP_X_REAL_IP'] ?? $_SERVER['REMOTE_ADDR'] ?? 'unknown';
 }
 
-/** Render a minimal result page using the shared blue-palette CSS. */
-function render_page(string $heading, string $body_html): void
+//This checks if requester is currently locked out from registering or logging in. 
+//It returns the number of seconds to wait before trying again, or 0 if not locked out. It uses the rate_limits table to track attempts and lockouts.
+function rate_limit_seconds(PDO $conn, string $action, string $remote_ip, string $remote_email = ''): int
 {
-    echo '<!doctype html><html lang="en"><head>'
-        . '<meta charset="UTF-8">'
-        . '<meta name="viewport" content="width=device-width, initial-scale=1.0">'
-        . '<title>' . esc($heading) . '</title>'
-        . '<link rel="stylesheet" href="style.css">'
-        . '<link rel="stylesheet" href="register.css">'
-        . '</head><body><main class="auth-card">'
-        . '<h1>' . esc($heading) . '</h1>'
-        . $body_html
-        . '</main></body></html>';
+    $stmt = $conn->prepare(
+        'SELECT GREATEST(0, TIMESTAMPDIFF(SECOND, NOW(), locked_until))'
+            . ' FROM rate_limits'
+            . ' WHERE action = ? AND remote_ip = ? AND remote_email = ?'
+            . ' AND locked_until IS NOT NULL AND locked_until > NOW();'
+    );
+    $stmt->execute([$action, $remote_ip, $remote_email]);
+    $secs = $stmt->fetchColumn();
+    return $secs === false ? 0 : (int) $secs;
 }
 
-// ---------------------------------------------------------------------------
-// Login throttling  (backs the rate_limits table)
-// ---------------------------------------------------------------------------
-//
-// Fixed-window counter, one row per "who is trying which account":
-//   identifier    = "login:<client ip>:<email>"
-//   attempts      = failed logins seen in the current window
-//   window_start  = when that window opened
-//   locked_until  = once attempts hits LOGIN_MAX_ATTEMPTS, the wall-clock
-//                   time the caller may try again
-//
-// login_lockout_seconds() is the gate: it runs BEFORE the password check.
-// A failure is recorded with login_register_failure(); a success wipes the
-// row with login_clear_rate_limit(). Window and lockout are equal so a
-// caller can never be re-locked without a fresh batch of failures.
+const REGISTER_MAX_ATTEMPTS   = 15;
+const REGISTER_WINDOW_MINUTES = 60;
+const REGISTER_LOCKOUT_MINUTES = 60;
+
+
 
 const LOGIN_MAX_ATTEMPTS    = 5;   // failed logins allowed per window
 const LOGIN_WINDOW_MINUTES   = 15; // window the failures are counted in
 const LOGIN_LOCKOUT_MINUTES  = 15; // how long the lock lasts once tripped
 
-/**
- * Throttle bucket for one login attempt: this client IP against this email.
- *
- * REMOTE_ADDR only -- behind a real proxy you would read a *validated*
- * X-Forwarded-For instead (the raw header is client-controlled). The email
- * is lower-cased and clipped so "login:" + IPv6 (<=45) + ":" + email always
- * fits VARCHAR(255) / the UNIQUE key.
- */
-function login_rate_key(string $email): string
-{
-    $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
-    return 'login:' . $ip . ':' . substr(strtolower($email), 0, 190);
+/** Record one attempt for this bucket -- one atomic UPSERT, no read-then-write race. */
+function record_attempt(
+    PDO $conn,
+    string $action,
+    string $remote_ip,
+    string $remote_email,
+    int $max_attempts,
+    int $window_minutes,
+    int $lockout_minutes
+): void {
+    $sql = sprintf(
+        'INSERT INTO rate_limits (action, remote_ip, remote_email, attempts, window_start)'
+            . ' VALUES (?, ?, ?, 1, NOW())'
+            . ' ON DUPLICATE KEY UPDATE'
+            . '   attempts = IF(window_start < NOW() - INTERVAL %1$d MINUTE, 1, attempts + 1),'
+            . '   locked_until = IF(attempts >= %2$d, NOW() + INTERVAL %3$d MINUTE, locked_until),'
+            . '   window_start = IF(window_start < NOW() - INTERVAL %1$d MINUTE, NOW(), window_start);',
+        $window_minutes,
+        $max_attempts,
+        $lockout_minutes
+    );
+    $conn->prepare($sql)->execute([$action, $remote_ip, $remote_email]);
 }
 
-/**
- * Seconds still to wait if this identifier is inside a lockout window,
- * else 0. Called before the password is looked at.
- */
-function login_lockout_seconds(PDO $conn, string $identifier): int
+/** Drop this bucket's counter -- e.g. after a successful login. */
+function clear_attempts(PDO $conn, string $action, string $remote_ip, string $remote_email = ''): void
 {
     $stmt = $conn->prepare(
-        'SELECT GREATEST(0, TIMESTAMPDIFF(SECOND, NOW(), locked_until))'
-        . ' FROM rate_limits'
-        . ' WHERE identifier = ? AND locked_until IS NOT NULL AND locked_until > NOW();'
+        'DELETE FROM rate_limits WHERE action = ? AND remote_ip = ? AND remote_email = ?;'
     );
-    $stmt->execute([$identifier]);
-    $secs = $stmt->fetchColumn();
-    return $secs === false ? 0 : (int) $secs;
-}
-
-/**
- * Record one failed attempt for this identifier.
- *
- * One atomic UPSERT on UNIQUE(identifier) -- no read-then-write race.
- * MySQL evaluates the ON DUPLICATE KEY UPDATE assignments left to right and
- * a later expression sees columns already assigned earlier in the same
- * statement, so the order matters:
- *   1. attempts     -- reads the OLD window_start: stale window => 1, else +1
- *   2. locked_until  -- reads the NEW attempts: at the limit => stamp a lock
- *   3. window_start  -- reads its own OLD value last: stale => reopen at NOW()
- */
-function login_register_failure(PDO $conn, string $identifier): void
-{
-    $sql = sprintf(
-        'INSERT INTO rate_limits (identifier, attempts, window_start)'
-        . ' VALUES (?, 1, NOW())'
-        . ' ON DUPLICATE KEY UPDATE'
-        . '   attempts = IF(window_start < NOW() - INTERVAL %1$d MINUTE, 1, attempts + 1),'
-        . '   locked_until = IF(attempts >= %2$d, NOW() + INTERVAL %3$d MINUTE, locked_until),'
-        . '   window_start = IF(window_start < NOW() - INTERVAL %1$d MINUTE, NOW(), window_start);',
-        LOGIN_WINDOW_MINUTES,
-        LOGIN_MAX_ATTEMPTS,
-        LOGIN_LOCKOUT_MINUTES
-    );
-    $conn->prepare($sql)->execute([$identifier]);
-}
-
-/** Drop this identifier's failure counter after a successful login. */
-function login_clear_rate_limit(PDO $conn, string $identifier): void
-{
-    $stmt = $conn->prepare('DELETE FROM rate_limits WHERE identifier = ?;');
-    $stmt->execute([$identifier]);
+    $stmt->execute([$action, $remote_ip, $remote_email]);
 }
 
 /** 429 page telling the caller how long to wait, then stop. */
-function login_lockout_response(int $seconds): void
+function too_many_attempts(int $seconds): void
 {
     http_response_code(429);
     header('Retry-After: ' . $seconds);
     render_page(
         'Too many attempts',
-        '<p>Too many failed login attempts. Please wait about '
-        . (int) ceil($seconds / 60) . ' minute(s) and try again.</p>'
+        '<p>Too many attempts. Please wait about '
+            . (int) ceil($seconds / 60) . ' minute(s) and try again.</p>'
     );
     exit;
 }
