@@ -27,3 +27,13 @@ function get_connection(?string $dbname = null): PDO
 
     return new PDO($dsn, $user, $password, $options);
 }
+
+/** Shared connection for this request -- opened once, on first actual use. */
+function db(): PDO
+{
+    static $conn = null;
+    if ($conn === null) {
+        $conn = get_connection();
+    }
+    return $conn;
+}

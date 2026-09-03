@@ -31,7 +31,8 @@ if ($email === '' || $password === '') {
 // The throttle guards the `accounts` login: N failures in a window ->
 // a timed lock, checked here BEFORE the password is looked at so a
 // locked caller costs nothing.
-$rate_key = login_rate_key($email);
+$rate_ip    = client_ip();
+$rate_email = substr(strtolower($email), 0, 190);
 
 try {
     $conn = get_connection();
@@ -42,9 +43,9 @@ try {
     exit;
 }
 
-$wait = login_lockout_seconds($conn, $rate_key);
+$wait = rate_limit_seconds($conn, 'login', $rate_ip, $rate_email);
 if ($wait > 0) {
-    login_lockout_response($wait);
+    too_many_attempts($wait);
 }
 
 // --- 4. Look the account up and verify the hash --------------------
@@ -68,16 +69,24 @@ try {
 if ($account === false || !password_verify($password, $account['password_hash'])) {
     // Count the failure first. If it's the one that trips the limit,
     // say so; otherwise the generic message.
-    login_register_failure($conn, $rate_key);
-    $wait = login_lockout_seconds($conn, $rate_key);
+    record_attempt(
+        $conn,
+        'login',
+        $rate_ip,
+        $rate_email,
+        LOGIN_MAX_ATTEMPTS,
+        LOGIN_WINDOW_MINUTES,
+        LOGIN_LOCKOUT_MINUTES
+    );
+    $wait = rate_limit_seconds($conn, 'login', $rate_ip, $rate_email);
     if ($wait > 0) {
-        login_lockout_response($wait);
+        too_many_attempts($wait);
     }
     login_failed('Email or password is incorrect.');
 }
 
 // Good credentials -- clear this identifier's failure counter.
-login_clear_rate_limit($conn, $rate_key);
+clear_attempts($conn, 'login', $rate_ip, $rate_email);
 
 // --- 5. Opportunistic rehash if the cost/algorithm moved on ----------
 if (password_needs_rehash($account['password_hash'], PASSWORD_DEFAULT, ['cost' => 12])) {
