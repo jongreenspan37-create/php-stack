@@ -9,6 +9,12 @@ function get_connection(?string $dbname = null): PDO
     $user = getenv('MYSQL_USER');
     $password = getenv('MYSQL_PASSWORD');
 
+    foreach (['DB_HOST' => $host, 'MYSQL_DATABASE' => $dbname, 'MYSQL_USER' => $user, 'MYSQL_PASSWORD' => $password] as $name => $value) {
+        if ($value === false || $value === '') {
+            throw new RuntimeException("Missing required environment variable: $name");
+        }
+    }
+
     $dsn = "mysql:host={$host};port={$port};dbname={$dbname};charset=utf8mb4";
 
     // CRITICAL SECURITY & STABILITY OPTIONS

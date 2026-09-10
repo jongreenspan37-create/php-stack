@@ -9,8 +9,10 @@ function escapeHtml(value) {
     .replaceAll("'", "&#39;");
 }
 
+// runs wghen clicking buttons with data-script attribute
 document.querySelectorAll("button[data-script]").forEach((button) => {
   button.addEventListener("click", async () => {
+    console.log(`Running script: ${button.dataset.script}`);
     const name = button.dataset.script;
     result.textContent = `Running ${name}...`;
     try {

@@ -26,7 +26,8 @@ table {
   margin: 0.5rem 0 1.5rem;
 }
 
-th, td {
+th,
+td {
   text-align: left;
   padding: 0.4rem 0.6rem;
   border-bottom: 1px solid #ddd;
@@ -36,4 +37,9 @@ table button {
   padding: 0.25rem 0.6rem;
   font-size: 0.85rem;
   margin-right: 0.25rem;
+}
+
+a {
+  color: #007bff;
+  text-decoration: none;
 }

@@ -24,6 +24,7 @@ header('Content-Type: application/json');
 //add the script pages
 require_once __DIR__ . '/scripts/basic.php';
 require_once __DIR__ . '/scripts/create_tables.php';
+require_once __DIR__ . '/scripts/get_csv.php';
 require_once __DIR__ . '/scripts/health.php';
 require_once __DIR__ . '/scripts/list_manipulation.php';
 require_once __DIR__ . '/scripts/role_crud.php';
@@ -38,6 +39,7 @@ $routes = [
     'list_manipulation/count_fruit' => 'count_fruit',
     'health/health' => 'health',
     'create_tables/create_tables' => 'create_tables',
+    'create_tables/import_formula_1' => 'import_formula_1',
     'role_crud/add_role' => 'add_role',
     'role_crud/list_roles' => 'list_roles',
     'role_crud/update_role' => 'update_role',
@@ -57,7 +59,8 @@ if (!isset($routes[$name])) {
     return true;
 }
 
-//extract json body - cant use $_GET or $_POST 
+//extract json body - cant use $_GET or $_POST get raw data from php://input
+
 $body = null;
 $raw = file_get_contents('php://input');
 if ($raw !== '') {
