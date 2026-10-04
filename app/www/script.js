@@ -1,5 +1,12 @@
+// Shared JavaScript for database-interaction.html: generic data-script buttons
+// plus the roles and users CRUD tables.
+
+// The <pre> box where every server reply is shown.
 const result = document.getElementById("result");
 
+// Replaces the 5 characters that mean something in HTML (& < > " ') with safe
+// codes. Needed wherever data goes into innerHTML, so a name like
+// "<script>..." shows as text instead of running.
 function escapeHtml(value) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -13,13 +20,16 @@ function escapeHtml(value) {
 document.querySelectorAll("button[data-script]").forEach((button) => {
   button.addEventListener("click", async () => {
     console.log(`Running script: ${button.dataset.script}`);
+    // dataset.script reads the data-script="..." attribute.
     const name = button.dataset.script;
     result.textContent = `Running ${name}...`;
     try {
+      // await pauses until the request finishes (needs an async function).
       const res = await fetch(`/api/run/${name}`);
 
       const data = await res.json();
 
+      // null, 2 = pretty-print the JSON with 2-space indentation.
       result.textContent = JSON.stringify(data, null, 2);
     } catch (err) {
       result.textContent = `Request failed: ${err}`;
@@ -27,6 +37,8 @@ document.querySelectorAll("button[data-script]").forEach((button) => {
   });
 });
 
+// Calls one API function and returns the parsed JSON.
+// With a body: POST it as JSON. Without: a plain GET.
 async function callScript(name, body) {
   const options = body
     ? {
@@ -41,12 +53,15 @@ async function callScript(name, body) {
 
 // --- Roles ---
 
+// Grab the page elements once and reuse them.
+
 const rolesTableBody = document.querySelector("#roles-table tbody");
 const addRoleForm = document.getElementById("add-role-form");
 const cancelRoleEdit = document.getElementById("cancel-role-edit");
 
 const userRoleSelect = document.getElementById("user-role-select");
 
+// Rebuilds the role dropdown on the user form, keeping the current selection.
 function populateRoleOptions(roles) {
   const previousValue = userRoleSelect.value;
   userRoleSelect.innerHTML = '<option value="">-- No role --</option>';
@@ -59,13 +74,17 @@ function populateRoleOptions(roles) {
   userRoleSelect.value = previousValue;
 }
 
+// Fetches every role and redraws the roles table.
 async function loadRoles() {
   const data = await callScript("role_crud/list_roles");
   if (data.status !== "ok") return;
 
+  // Clear the table, then add one row per role.
   rolesTableBody.innerHTML = "";
   for (const role of data.roles) {
     const row = document.createElement("tr");
+    // innerHTML parses the string as HTML, so every value goes through escapeHtml.
+    // data-id / data-name store the role on the button for the click handler below.
     row.innerHTML = `
       <td>${escapeHtml(role.id)}</td>
       <td>${escapeHtml(role.name)}</td>
@@ -79,6 +98,7 @@ async function loadRoles() {
   populateRoleOptions(data.roles);
 }
 
+// Puts the role form back into "Add" mode.
 function resetRoleForm() {
   addRoleForm.reset();
   addRoleForm.removeAttribute("data-editing-id");
@@ -87,7 +107,10 @@ function resetRoleForm() {
   cancelRoleEdit.hidden = true;
 }
 
+// One click listener on the whole table instead of one per button ("event delegation").
+// It still works for rows added later.
 rolesTableBody.addEventListener("click", async (event) => {
+  // closest() finds the button that was clicked (or contains what was clicked).
   const button = event.target.closest("button[data-action]");
   if (!button) return;
   const id = button.dataset.id;
@@ -99,6 +122,8 @@ rolesTableBody.addEventListener("click", async (event) => {
     if (data.status === "ok") loadRoles();
   }
 
+  // Edit: copy the role into the form and switch it to "Update" mode.
+  // The id box is disabled because the id can't be changed.
   if (button.dataset.action === "edit-role") {
     addRoleForm.dataset.editingId = id;
     addRoleForm.id.value = id;
@@ -112,6 +137,7 @@ rolesTableBody.addEventListener("click", async (event) => {
 
 cancelRoleEdit.addEventListener("click", resetRoleForm);
 
+// Add or update, depending on whether the form has a data-editing-id.
 addRoleForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const form = event.target;
@@ -123,10 +149,12 @@ addRoleForm.addEventListener("submit", async (event) => {
 
   result.textContent = editingId ? "Updating role..." : "Adding role...";
   try {
+    // Ternary: condition ? if-true : if-false
     const script = editingId ? "role_crud/update_role" : "role_crud/add_role";
     const data = await callScript(script, body);
     result.textContent = JSON.stringify(data, null, 2);
     if (data.status === "ok") {
+      // Success: clear the form and reload the table to show the change.
       resetRoleForm();
       loadRoles();
     }
@@ -136,11 +164,13 @@ addRoleForm.addEventListener("submit", async (event) => {
 });
 
 // --- Users ---
+// Same pattern as the roles section above.
 
 const usersTableBody = document.querySelector("#users-table tbody");
 const addUserForm = document.getElementById("add-user-form");
 const cancelUserEdit = document.getElementById("cancel-user-edit");
 
+// Fetches every user (with role name) and redraws the users table.
 async function loadUsers() {
   const data = await callScript("user_crud/list_users");
   if (data.status !== "ok") return;
@@ -148,6 +178,7 @@ async function loadUsers() {
   usersTableBody.innerHTML = "";
   for (const user of data.users) {
     const row = document.createElement("tr");
+    // user.roleName ?? "" shows an empty cell when the user has no role (null).
     row.innerHTML = `
       <td>${escapeHtml(user.id)}</td>
       <td>${escapeHtml(user.firstName)}</td>
@@ -204,8 +235,10 @@ addUserForm.addEventListener("submit", async (event) => {
     firstName: form.firstName.value,
     lastName: form.lastName.value,
     email: form.email.value,
+    // "" (no role chosen) becomes null.
     roleId: form.roleId.value || null,
   };
+  // Only an update sends the id; a new user gets its id from the database.
   if (editingId) body.id = editingId;
 
   result.textContent = editingId ? "Updating user..." : "Adding user...";
@@ -222,5 +255,6 @@ addUserForm.addEventListener("submit", async (event) => {
   }
 });
 
+// Fill both tables when the page first loads.
 loadRoles();
 loadUsers();

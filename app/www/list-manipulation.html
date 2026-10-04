@@ -4,6 +4,15 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>List Manipulation</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        corePlugins: { preflight: false },
+      };
+    </script>
+    <link rel="stylesheet" href="style.css" />
+
     <style>
       .div1 {
         display: flex;
@@ -12,19 +21,17 @@
     </style>
   </head>
   <body>
+    <nav>
+      <ul>
+      <li><a href="index.html">Main Page</a></li>
+      <li><a href="list-manipulation.html">List Manipulation</a></li>
+      <li><a href="database-interaction.html">Database Interaction</a></li>
+      <li><a href="formula1.php">Formula 1</a></li>
+      </ul>
+    </nav>
     <h1>List manipulation</h1>
-    <div>
-      <button type="button" id="test">Test</button>
-      <script>
-        const test = document.getElementById("test");
-        test.addEventListener("click", () => {
-          fetch("/api/run/list_manipulation/hello")
-            .then((res) => res.json())
-            .then((data) => console.log(data));
-        });
-      </script>
-    </div>
 
+    <!-- Two ways to show the same fruit list: a <ul> and a <table>. -->
     <div class="div1">
       <div>
         <div>
@@ -48,6 +55,7 @@
       </div>
 
       <div>
+        <!-- Count how many times one fruit appears in the CSV. -->
         <form id="count-fruit">
           <input type="text" name="fruit" placeholder="e.g. melon" required />
 
@@ -57,31 +65,61 @@
         <div class="result-div" id="fruit-result"></div>
       </div>
     </div>
+
+    <div>
+      <div>
+        <!-- Shows a new list built on the server from the fruits. -->
+        <button type="button" id="prepare-data">Prepare Data</button>
+      </div>
+      <div class="result-div" id="prepare-error" style="color: red"></div>
+      <ul id="prepare-list"></ul>
+    </div>
   </body>
   <script>
     const addList = document.getElementById("add-list");
     const addTable = document.getElementById("add-table");
     const fruitList = document.getElementById("fruit-list");
     const fruitTableBody = document.getElementById("fruit-table-body");
+    const fruitError = document.getElementById("fruit-error");
 
     //uses forEach no new array just display
     addList.addEventListener("click", () => {
+      fruitError.textContent = "";
       fetch("/api/run/list_manipulation/upload_fruits")
         .then((res) => res.json())
         .then((data) => {
+          if (data.error) {
+            fruitError.textContent = data.error;
+            return;
+          }
+          // Clear the old list first so clicking twice doesn't duplicate it.
+          fruitList.textContent = "";
           data.forEach((fruitItem) => {
+            // Create a new <li>, set its text, and add it to the list.
+            // textContent (not innerHTML) treats the data as plain text, so it can't inject HTML.
             const li = document.createElement("li");
             li.textContent = `${fruitItem.id} - ${fruitItem.fruit};`;
             fruitList.appendChild(li);
           });
+        })
+        // .catch runs if the request fails or the reply isn't valid JSON.
+        .catch(() => {
+          fruitError.textContent = "Could not load fruits.";
         });
     });
 
     //uses .map() create new array
     addTable.addEventListener("click", () => {
+      fruitError.textContent = "";
       fetch("/api/run/list_manipulation/upload_fruits")
         .then((res) => res.json())
         .then((data) => {
+          if (data.error) {
+            fruitError.textContent = data.error;
+            return;
+          }
+          fruitTableBody.textContent = "";
+          // .map() turns each fruit object into a <tr> element, giving a new array of rows.
           const rows = data.map((fruitItem) => {
             const tr = document.createElement("tr");
 
@@ -94,12 +132,15 @@
             tr.append(idCell, fruitCell);
             return tr;
           });
+          // ...rows spreads the array, so append() gets every row as a separate argument.
           fruitTableBody.append(...rows);
+        })
+        .catch(() => {
+          fruitError.textContent = "Could not load fruits.";
         });
     });
 
     const countFruit = document.getElementById("count-fruit");
-    const fruitError = document.getElementById("fruit-error");
     const fruitResult = document.getElementById("fruit-result");
 
     countFruit.addEventListener("submit", (e) => {
@@ -120,6 +161,7 @@
       fetch("/api/run/list_manipulation/count_fruit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        // The body is just a JSON string, e.g. "apple" (not an object).
         body: JSON.stringify(fruit),
       })
         .then((res) => res.json())
@@ -128,7 +170,25 @@
             fruitError.textContent = data.error;
             return;
           }
-          fruitResult.textContent = data;
+          fruitResult.textContent = `${data.fruit}: ${data.count}`;
+        });
+    });
+
+    const prepareData = document.getElementById("prepare-data");
+    const prepareList = document.getElementById("prepare-list");
+    const prepareError = document.getElementById("prepare-error");
+
+    prepareData.addEventListener("click", () => {
+      prepareError.textContent = "";
+      fetch("/api/run/list_manipulation/prepare_data")
+        .then((res) => res.json())
+        .then((data) => {
+          prepareList.textContent = "";
+          data.forEach((item) => {
+            const li = document.createElement("li");
+            li.textContent = item.description;
+            prepareList.appendChild(li);
+          });
         });
     });
   </script>

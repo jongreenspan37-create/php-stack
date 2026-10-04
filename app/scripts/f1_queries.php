@@ -1,4 +1,7 @@
 <?php
+// A list of practice SQL queries for the F1 data, shown in the dropdown on formula1.php.
+// <<<'ML' ... ML is a "nowdoc": a multi-line string with no variable
+// substitution (like Python's triple-quoted """...""").
 
 /**
  * A catalogue of the F1 dataset practice queries.

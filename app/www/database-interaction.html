@@ -4,23 +4,37 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Database Interaction</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        corePlugins: { preflight: false },
+      };
+    </script>
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
     <nav>
-      <a href="index.html">Main Page</a>
-      <a href="list-manipulation.html">List Manipulation</a>
-      <a href="database-interaction.html">Database Interaction</a>
+      <ul>
+      <li><a href="index.html">Main Page</a></li>
+      <li><a href="list-manipulation.html">List Manipulation</a></li>
+      <li><a href="database-interaction.html">Database Interaction</a></li>
+      <li><a href="formula1.php">Formula 1</a></li>
+      </ul>
     </nav>
+    <!-- Every server reply is shown here as formatted JSON (filled in by script.js). -->
+    <pre id="result"></pre>
     <main>
       <h1>Database Interaction</h1>
 
+      <!-- Buttons with data-script="file/function" are wired up automatically by script.js:
+           clicking one calls /api/run/file/function and shows the reply above. -->
       <button data-script="health/health">Check DB Connection</button>
       <button data-script="create_tables/create_tables">Create Tables</button>
-      <button data-script="create_tables/import_formula_1">Import Formula 1</button>
+      
       <button data-script="test/test_2">Test2</button>
 
       <h2>Roles</h2>
+      <!-- script.js fills the <tbody> with one row per role, with Edit/Delete buttons. -->
       <table id="roles-table">
         <thead>
           <tr>
@@ -33,9 +47,16 @@
       </table>
 
       <h3>Add / Edit Role</h3>
+      <!-- The same form adds a new role or, after clicking Edit, updates an existing one. -->
       <form id="add-role-form">
         <input type="text" name="id" placeholder="ID no.." required />
-        <input type="text" name="name" placeholder="Role name ...." required />
+        <input
+          type="text"
+          name="name"
+          placeholder="Role name ...."
+          maxlength="25"
+          required
+        />
 
         <button type="submit">Add Role</button>
         <button type="button" id="cancel-role-edit" hidden>Cancel</button>
@@ -58,18 +79,20 @@
 
       <h3>Add / Edit User</h3>
       <form id="add-user-form">
-        <input type="text" name="firstName" placeholder="First name" required />
-        <input type="text" name="lastName" placeholder="Last name" required />
-        <input type="email" name="email" placeholder="Email" required />
-        <select name="roleId" id="user-role-select">
+        <input type="text" class="h-8" name="firstName" placeholder="First name" required />
+        <input type="text" class="h-8" name="lastName" placeholder="Last name" required />
+        <input type="email" class="h-8" name="email" placeholder="Email" required />
+        <!-- script.js adds one <option> per role after loading the roles. -->
+        <select class="h-8 p-2" name="roleId" id="user-role-select">
           <option value="">-- No role --</option>
         </select>
-        <button type="submit">Add User</button>
+        <button type="submit" class="mt-2">Add User</button>
         <button type="button" id="cancel-user-edit" hidden>Cancel</button>
       </form>
 
-      <pre id="result"></pre>
+      
     </main>
+    <!-- Loaded at the end of <body> so all the elements above exist when it runs. -->
     <script src="script.js"></script>
   </body>
 </html>

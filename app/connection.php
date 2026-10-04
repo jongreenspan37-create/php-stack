@@ -1,6 +1,9 @@
 <?php
 //Creates a database connection keeping value secret. Not a pool only one connection
 
+// Reads the settings from environment variables (set from .env by docker-compose),
+// so no password is ever written in the code. Throws if any are missing.
+// PDO is PHP's built-in database layer (like psycopg2 in Python).
 function get_connection(?string $dbname = null): PDO
 {
     $host = getenv('DB_HOST');
@@ -15,6 +18,7 @@ function get_connection(?string $dbname = null): PDO
         }
     }
 
+    // DSN = the connection string: which driver, host, port and database to use.
     $dsn = "mysql:host={$host};port={$port};dbname={$dbname};charset=utf8mb4";
 
     // CRITICAL SECURITY & STABILITY OPTIONS
@@ -37,6 +41,8 @@ function get_connection(?string $dbname = null): PDO
 /** Shared connection for this request -- opened once, on first actual use. */
 function db(): PDO
 {
+    // A static variable keeps its value between calls (within one request),
+    // so every caller of db() shares the same connection.
     static $conn = null;
     if ($conn === null) {
         $conn = get_connection();

@@ -1,4 +1,7 @@
 <?php
+// The F1 table definitions: table name => [column name => MySQL type].
+// The column order must match the CSV files in csv/formula_1/, because
+// get_formula_1() inserts each CSV row by position. Comments show each CSV header.
 
 $f1_tables = [
     //season,round,position,points,wins,constructorId
